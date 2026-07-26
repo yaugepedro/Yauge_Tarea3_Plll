@@ -4,7 +4,7 @@ function nowDate() {
   return new Date();
 }
 
-const TaskModel = {
+const TaskModel = { // Modelo de datos para la entidad Task, con operaciones CRUD sobre SQL Servergit status
   async create({ title, description }) {
     const pool = await getPool();
     const timestamp = nowDate();
