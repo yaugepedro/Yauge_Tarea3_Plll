@@ -1,0 +1,22 @@
+{
+  "name": "todo-crud",
+  "version": "1.0.0",
+  "description": "API CRUD de tareas (To-Do) con Node.js, Express y SQLite. Proyecto de practica de Git Flow.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": ["crud", "todo", "express", "sqlite", "gitflow"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "sqlite3": "^5.1.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
