@@ -1,66 +1,47 @@
-const { sql, getPool } = require('../config/database');
+const { tasks, getNextId } = require('../config/database');
 
-function nowDate() {
-  return new Date();
+function nowISO() {
+  return new Date().toISOString();
 }
 
-const TaskModel = { // Modelo de datos para la entidad Task, con operaciones CRUD sobre SQL Servergit status
+const TaskModel = {
   async create({ title, description }) {
-    const pool = await getPool();
-    const timestamp = nowDate();
-    const result = await pool.request()
-      .input('title', sql.NVarChar(150), title)
-      .input('description', sql.NVarChar(sql.MAX), description || '')
-      .input('created_at', sql.DateTime, timestamp)
-      .input('updated_at', sql.DateTime, timestamp)
-      .query(`
-        INSERT INTO tasks (title, description, completed, created_at, updated_at)
-        OUTPUT INSERTED.*
-        VALUES (@title, @description, 0, @created_at, @updated_at)
-      `);
-    return result.recordset[0];
+    const timestamp = nowISO();
+    const newTask = {
+      id: getNextId(),
+      title,
+      description: description || '',
+      completed: false,
+      created_at: timestamp,
+      updated_at: timestamp,
+    };
+    tasks.unshift(newTask);
+    return newTask;
   },
 
   async findAll() {
-    const pool = await getPool();
-    const result = await pool.request().query('SELECT * FROM tasks ORDER BY created_at DESC');
-    return result.recordset;
+    return tasks;
   },
 
   async findById(id) {
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .query('SELECT * FROM tasks WHERE id = @id');
-    return result.recordset[0];
+    return tasks.find((t) => t.id === Number(id));
   },
 
   async update(id, { title, description, completed }) {
-    const pool = await getPool();
-    const timestamp = nowDate();
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .input('title', sql.NVarChar(150), title ?? null)
-      .input('description', sql.NVarChar(sql.MAX), description ?? null)
-      .input('completed', sql.Bit, typeof completed === 'boolean' ? completed : null)
-      .input('updated_at', sql.DateTime, timestamp)
-      .query(`
-        UPDATE tasks
-        SET title = COALESCE(@title, title),
-            description = COALESCE(@description, description),
-            completed = COALESCE(@completed, completed),
-            updated_at = @updated_at
-        WHERE id = @id
-      `);
-    return result.rowsAffected[0];
+    const task = tasks.find((t) => t.id === Number(id));
+    if (!task) return 0;
+    if (title !== undefined) task.title = title;
+    if (description !== undefined) task.description = description;
+    if (completed !== undefined) task.completed = completed;
+    task.updated_at = nowISO();
+    return 1;
   },
 
   async delete(id) {
-    const pool = await getPool();
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .query('DELETE FROM tasks WHERE id = @id');
-    return result.rowsAffected[0];
+    const index = tasks.findIndex((t) => t.id === Number(id));
+    if (index === -1) return 0;
+    tasks.splice(index, 1);
+    return 1;
   },
 };
 

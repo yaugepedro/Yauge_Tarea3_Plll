@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Dashboard de Tareas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Tareas</h1>
+    <p class="subtitle">Organiza tu día, una tarea a la vez.</p>
+  </header>
+
+  <form id="task-form">
+    <input type="text" id="title-input" placeholder="¿Qué necesitas hacer?" required />
+    <button type="submit">Agregar</button>
+  </form>
+
+  <ul id="task-list"></ul>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const API_URL = '/api/tasks';
+    const form = document.getElementById('task-form');
+    const input = document.getElementById('title-input');
+    const list = document.getElementById('task-list');
+    const toast = document.getElementById('toast');
+
+    let toastTimeout;
+    function showToast(message, type = 'success') {
+      clearTimeout(toastTimeout);
+      toast.textContent = message;
+      toast.className = `toast show ${type}`;
+      toastTimeout = setTimeout(() => {
+        toast.className = 'toast';
+      }, 2500);
+    }
+
+    async function fetchTasks() {
+      const res = await fetch(API_URL);
+      const tasks = await res.json();
+      renderTasks(tasks);
+    }
+
+    function renderTasks(tasks) {
+      list.innerHTML = '';
+
+      if (tasks.length === 0) {
+        list.innerHTML = '<li class="empty-state" style="border:none;background:none;">No tienes tareas todavía. Agrega la primera arriba.</li>';
+        return;
+      }
+
+      tasks.forEach((task) => {
+        const li = document.createElement('li');
+        li.className = task.completed ? 'completed' : '';
+        li.dataset.id = task.id;
+        li.innerHTML = `
+          <span class="task-title">${task.title}</span>
+          <div class="actions">
+            <button class="toggle-btn" data-id="${task.id}" data-completed="${task.completed}" title="Marcar como completada">✓</button>
+            <button class="edit-btn" data-id="${task.id}" title="Editar">✎</button>
+            <button class="delete-btn" data-id="${task.id}" title="Eliminar">✕</button>
+          </div>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = input.value.trim();
+      if (!title) return;
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title }),
+        });
+        if (!res.ok) throw new Error();
+        input.value = '';
+        await fetchTasks();
+        showToast('Tarea agregada correctamente', 'success');
+      } catch {
+        showToast('No se pudo agregar la tarea', 'error');
+      }
+    });
+
+    list.addEventListener('click', async (e) => {
+      const id = e.target.dataset.id;
+      if (!id) return;
+
+      if (e.target.classList.contains('delete-btn')) {
+        try {
+          const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error();
+          await fetchTasks();
+          showToast('Tarea eliminada correctamente', 'success');
+        } catch {
+          showToast('No se pudo eliminar la tarea', 'error');
+        }
+      }
+
+      if (e.target.classList.contains('toggle-btn')) {
+        const completed = e.target.dataset.completed === 'true';
+        try {
+          const res = await fetch(`${API_URL}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ completed: !completed }),
+          });
+          if (!res.ok) throw new Error();
+          await fetchTasks();
+          showToast(!completed ? 'Tarea marcada como completada' : 'Tarea marcada como pendiente', 'success');
+        } catch {
+          showToast('No se pudo actualizar la tarea', 'error');
+        }
+      }
+
+      if (e.target.classList.contains('edit-btn')) {
+        const li = e.target.closest('li');
+        const currentTitle = li.querySelector('.task-title').textContent;
+
+        li.innerHTML = `
+          <form class="edit-form">
+            <input type="text" value="${currentTitle}" required />
+            <button type="submit" class="toggle-btn" title="Guardar">✓</button>
+          </form>
+        `;
+
+        const editForm = li.querySelector('.edit-form');
+        const editInput = li.querySelector('input');
+        editInput.focus();
+        editInput.select();
+
+        editForm.addEventListener('submit', async (ev) => {
+          ev.preventDefault();
+          const newTitle = editInput.value.trim();
+          if (!newTitle) return;
+
+          try {
+            const res = await fetch(`${API_URL}/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: newTitle }),
+            });
+            if (!res.ok) throw new Error();
+            await fetchTasks();
+            showToast('Tarea editada correctamente', 'success');
+          } catch {
+            showToast('No se pudo editar la tarea', 'error');
+          }
+        });
+      }
+    });
+
+    fetchTasks();
+  </script>
+</body>
+</html>
